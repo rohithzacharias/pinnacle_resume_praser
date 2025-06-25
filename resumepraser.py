@@ -5,7 +5,7 @@ import spacy
 import pickle
 from parser import extract_raw_text
 
-# Load NER model for name
+# Load NER model for extracting name
 nlp = spacy.load('en_core_web_sm')
 
 # Load trained model
@@ -22,25 +22,31 @@ def format_parsed_data(text, predicted_labels):
     emails = re.findall(r'\S+@\S+\.\S+', text)
     phones = re.findall(r'\+?\d[\d -]{8,}\d', text)
 
-    # Extract sections based on labels
+    # Extract skills and education based on labels
     skills = []
     education = []
-    certifications = []
     for label in predicted_labels:
-        if label.lower() == 'skills':
-            # Just a simple keyword list
-            skill_list = ['Python', 'Java', 'C++', 'ML', 'Data Analysis', 'Communication']
+        label_lower = label.lower()
+        if label_lower == 'skills':
+            skill_list = ['Python', 'Java', 'C++', 'ML', 'Data Analysis', 'Communication', 'Problem-Solving', 'Leadership']
             skills = [s for s in skill_list if s.lower() in text.lower()]
-        elif label.lower() == 'education':
-            education_keywords = ['B.Tech', 'BSc', 'M.Tech', 'MSc', 'PhD', 'MBA']
+        elif label_lower == 'education':
+            education_keywords = ['B.Tech', 'BSc', 'M.Tech', 'MSc', 'PhD', 'MBA', 'University', 'College', 'Degree']
             education = [e for e in education_keywords if e.lower() in text.lower()]
-        elif label.lower() == 'certifications':
-            # Dummy certification list
-            certs_list = ['AWS Certified', 'Microsoft Certified', 'Azure Fundamentals']
-            certifications = [c for c in certs_list if c.lower() in text.lower()]
 
-    return f"""\
-==============================
+    # Always attempt to extract certifications
+    certifications = []
+    cert_match = re.search(
+        r'Certifications:\s*(.*?)\n\s*\n|Certifications:\s*(.*)$',
+        text,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+    if cert_match:
+        cert_text = cert_match.group(1) if cert_match.group(1) else cert_match.group(2)
+        certifications = re.split(r'\n|-|,', cert_text)
+        certifications = [c.strip() for c in certifications if c.strip()]
+
+    return f"""==============================
 👤 Name: {name}
 ✉️ Email(s): {', '.join(emails) if emails else 'N/A'}
 📞 Phone(s): {', '.join(phones) if phones else 'N/A'}
@@ -56,7 +62,7 @@ ctk.set_default_color_theme("blue")
 
 app = ctk.CTk()
 app.title("📄 AI Resume Parser")
-app.geometry("600x500")
+app.geometry("600x550")
 
 title_label = ctk.CTkLabel(
     app,
@@ -88,6 +94,9 @@ def browse_file():
         except Exception as e:
             messagebox.showerror("Error", f"{e}")
 
+def clear_output():
+    output_textbox.delete("1.0", "end")
+
 browse_button = ctk.CTkButton(
     app,
     text="Browse Resume",
@@ -98,4 +107,17 @@ browse_button = ctk.CTkButton(
 )
 browse_button.pack(pady=10)
 
+clear_button = ctk.CTkButton(
+    app,
+    text="Clear Output",
+    command=clear_output,
+    width=200,
+    height=40,
+    corner_radius=8,
+    fg_color="red",
+    hover_color="darkred"
+)
+clear_button.pack(pady=5)
+
 app.mainloop()
+# This script provides a GUI for parsing resumes using a trained model and displays the parsed information.
